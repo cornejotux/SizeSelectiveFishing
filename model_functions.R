@@ -10,8 +10,9 @@
 ## This need to include a gausian distribution of the length for each age
 ageToLength <- function(ageSex, ageDistro)
 {
-  ageSex <- merge(ageSex, ageDistro, by.x=c("sex", "age"), by.y=c("Sex", "totalAge"))[,-c(3,4)]
-  length <- unlist(lapply(ageSex$mean, ageSex$sd, FUN=rnorm, n=1))
+  ageSex <- merge(ageSex, ageDistro, by.x=c("sex", "Salt.Water.Age"), by.y=c("Sex", "Salt.Water.Age"))[,-c(3)]
+  length <- unlist(lapply(ageSex$meanLength, ageSex$sdLength, FUN=rnorm, n=1))
+  #length <- rnorm(1, ageSex$meanLength, ageSex$sdLength)
   return(length)
 }
 
@@ -33,15 +34,15 @@ selectivityModel <- function(F = 0.6, selectivity = T, runFor = 30, sexComp=0.5,
   modelU <- lm(pp ~ size, data = selPointU) #Model the selectivity curve
   selMU <- modelU$coefficients[2]; selCU <- modelU$coefficients[1]
   ## This is the initial population!
-  population <- data.frame(age=NULL, sex=NULL, size=NULL)
+  population <- data.frame(age=NULL, sex=NULL, length=NULL)
   
   for (i in 1:dim(ageDistro)[1])
   {
     if(is.na(ageDistro$sd[i])) 
     {ageDistro$sd[i] <- 1}
-    temp <- data.frame(age = ageDistro$totalAge[i],
+    temp <- data.frame(age = ageDistro$Salt.Water.Age[i],
                        sex = ageDistro$Sex[i],
-                       size = round(rnorm(ageDistro$n[i], mean=ageDistro$mean[i], sd=ageDistro$sd[i]),0))
+                       length = round(rnorm(ageDistro$n[i], mean=ageDistro$mean[i], sd=ageDistro$sd[i]),0))
     population <- rbind(population, temp)
   }
   temp <- summarize(group_by(population, sex), n=n())
@@ -66,6 +67,7 @@ selectivityModel <- function(F = 0.6, selectivity = T, runFor = 30, sexComp=0.5,
     #}
     
     neggs <- summarize(group_by(population, sex, age), n = n())
+    neggs$age <- as.numeric(as.character(neggs$age))
     neggs <- merge(neggs, rec, by=c("age"))
     
     neggs <- mutate(filter(neggs, sex=="female"), nEggs = n*ferti)
@@ -86,13 +88,13 @@ selectivityModel <- function(F = 0.6, selectivity = T, runFor = 30, sexComp=0.5,
       } else {age <- c(age,round(runif(neggs$nEggs[j], neggs$age[j]-2, neggs$age[j]), 0))}
     }
     
-    #I'm assuming that the new population is redived from a 0.5 sex composition ratio
+    #I'm assuming that the new population is derived from a 0.5 sex composition ratio
     nextPopSex <- rbinom(length(age), 1, sexComp) ## 1 = Female
     
     nextPopSex <- ifelse(nextPopSex == 1, "female", "male")
-    ageSex <- data.frame(age = age, sex = nextPopSex)
+    ageSex <- data.frame(Salt.Water.Age = as.numeric(age), sex = nextPopSex)
     ######## Call function to transform from age to sex
-    length <- ageToLength(ageSex, ageDistro)
+    length <- ageToLength(ageSex, ageDistro) ###################### <<--This consumes a ver long time!!!
     ###################################
     population <- data.frame(age = age, length = length, sex = nextPopSex)
     ## Now we apply selective fishing for large fish and females
@@ -118,7 +120,11 @@ selectivityModel <- function(F = 0.6, selectivity = T, runFor = 30, sexComp=0.5,
       
     } else {fishing <- runif(dim(population)[1], 0, 1)} 
     
-    population$fishing <- fishing
+    population$fishing <- 0
+    if (fishingStart < i)
+    {
+      population$fishing <- fishing
+    }
     
     
     population$id <- seq(1, dim(population)[1])
@@ -165,21 +171,23 @@ selectivityModel <- function(F = 0.6, selectivity = T, runFor = 30, sexComp=0.5,
     counts <- summarize(group_by(females, age), n=n())
     counts <- merge(rec, counts, by=c("age"), all.x = T)
     
-    output$run[i] <<- i
-    output[i,(FishAges+1)] <<- counts$n
-    output$femToal[i] <<- sum(counts$n, na.rm = T)
-    output$total[i] <<- summarize(group_by(popAfterF), n=n())
-    output$sexComp[i] <<- newSexComp
-    output$landings[i] <<- dim(population)[1] - dim(popAfterF)[1]
-    output$meanSize[i] <<- mean(population$length)
-    output$sdSize[i] <<- sd(population$length)
+    output$run[i] <- i
+    for (k in 1:length(counts$n))
+    {
+      output[i,(counts$age[k]+1)] <- counts$n[k]
+    }
+    output$femToal[i] <- sum(counts$n, na.rm = T)
+    output$total[i] <- summarize(group_by(popAfterF), n=n())
+    output$sexComp[i] <- newSexComp
+    output$landings[i] <- dim(population)[1] - dim(popAfterF)[1]
+    output$meanSize[i] <- mean(population$length)
+    output$sdSize[i] <- sd(population$length)
     
     ## Now define Females as Population to start next iteration
     population <- females
-    
+    output <<- output
     if (rmd==FALSE) {setTxtProgressBar(pb, i)}
   }
-  close(pb)
   return(list(ouput=output, fem5=females5, femEnd=femalesEnd))
 }
 
