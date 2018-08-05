@@ -78,7 +78,7 @@ selectivityModel <- function(F = 0.6, selectivity = T, runFor = 30, sexComp=0.5,
     age <- NULL
     for (j in 1:dim(neggs)[1])
     {
-      if (neggs$age[j] <= 3)
+      if (neggs$age[j] <= 1)
       {
         age <- c(age,round(runif(neggs$nEggs[j], neggs$age[j], neggs$age[j]+2), 0))
       }
@@ -103,10 +103,11 @@ selectivityModel <- function(F = 0.6, selectivity = T, runFor = 30, sexComp=0.5,
     if (selectivity == T)
     {
       ##This define the selectivity based on the length of a fish
-      fishingSmall <- filter(population, length <= selPoints$size[2])
-      fishingSmall$Vuln <- selML * fishingSmall$length + selCL
+      fishingSmall <- filter(population, length < selPoints$size[2])
+      fishingSmall$Vuln <- ifelse(fishingSmall$length < 400, 0, 
+                                  selML * fishingSmall$length + selCL)
       
-      fishingMed   <- filter(population, length > selPoints$size[2] & length <= selPoints$size[3])
+      fishingMed   <- filter(population, length >= selPoints$size[2] & length <= selPoints$size[3])
       fishingMed$Vuln <- mean(selPoints$pp[2:3])
       
       fishingLarge <- filter(population, length > selPoints$size[3])
@@ -188,6 +189,6 @@ selectivityModel <- function(F = 0.6, selectivity = T, runFor = 30, sexComp=0.5,
     output <<- output
     if (rmd==FALSE) {setTxtProgressBar(pb, i)}
   }
-  return(list(ouput=output, fem5=females5, femEnd=femalesEnd))
+  return(list(output=output, fem5=females5, femEnd=femalesEnd))
 }
 
