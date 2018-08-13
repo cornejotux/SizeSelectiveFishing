@@ -112,7 +112,7 @@ runFor <- 100
 fishingStart <- 50
 escGoal <- 2000
 rmd <- TRUE
- yearToCompareLength <- 10
+ yearToCompareLength <- 15
 ```
 
 **Stock recruitment** using *Ricker* model.
@@ -170,10 +170,25 @@ plot(AgeComp$run, AgeComp$total, ylim=c(0,50000))
 plot(AgeComp$run, AgeComp$meanSize, type="l", ylim=c(520,560))
 
 landings <- ggplot(AgeComp, aes(x=run, y=landings, shape = "Land")) +
-  geom_point() + geom_line() + ylim(0, 60000) +
+  geom_point() + geom_line() + ylim(0, 100000) +
   xlab("Time [Years]") +     
   theme(axis.title.y=element_blank())
 
 plot_grid(all, age7, otro, landings, ncol=1, nrow=4, align = "v", rel_heights = c(2, 1, 1,2))
 ```
+
+```{r}
+initial <- ggplot(data=out$fem5, aes(x=age)) +
+  geom_histogram(binwidth = 1, bins=7) + xlim(c(1, 7.5)) +
+  ggtitle(paste("Females Year", yearToCompareLength)) + theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          panel.background = element_blank()) + xlab("") + ylab("Count")
+
+final <- ggplot(data=out$femEnd, aes(x=age)) +
+  geom_histogram(binwidth = 1, bins = 7) + xlim(c(1, 7.5)) +
+  ggtitle("Females at the end") + theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          panel.background = element_blank()) + xlab("Salt Water Age") + ylab("Count")
+
+plot_grid(initial, final, ncol=1, nrow=2, align = "h")
+```
+
 
